@@ -1,80 +1,69 @@
 from pypdf import PdfReader
 from pathlib import Path
-#path = "C:\\Users\\josh.lynch\\Videos\\WaybillMaster\\Spinney - 395007 - STJ6047100.pdf"
-#path = "C:\\Users\\josh.lynch\\Videos\\WaybillMaster\\Lane - 396036 - PickupSJ.pdf"
-path = "C:\\Users\\josh.lynch\\Videos\\WaybillMaster\\NF1 - 396041 - 335306377169.pdf"
+import math
+import firebase_admin
+from datetime import datetime
+import tkinter as tk
+from tkinter import filedialog
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+# Initialize Firebase
+cred = credentials.Certificate("C:\\Users\\josh.lynch\\Videos\\WaybillMaster\\bomwipstore-firebase-adminsdk-jhqev-c316244037.json")
+firebase_admin.initialize_app(cred)
+
+
 def GetDataList(pathName):
-    reader = PdfReader(pathName)
-    print(len(reader.pages))
-    page = reader.pages[0]
-    data_lst = (page.extract_text()).split("\n")
-    best_lst = []
-    #print(data_lst)
-    for i in data_lst:
-        if i == " ":
-            pass
-        else: best_lst.append(i)
-    return best_lst
+    reader = PdfReader(pathName)  # Open the PDF
+    full_data = []
+    
+    # Iterate over each page in the PDF
+    for page in reader.pages:
+        # Extract text from the page, split into lines, and clean up empty lines
+        data_lst = page.extract_text().split("\n")
+        # Append non-empty, stripped lines to full_data
+        full_data.extend([i.strip() for i in data_lst if i.strip()])
+    
+    return full_data
+
+print(GetDataList("C:\\Users\\josh.lynch\\Videos\\WaybillMaster\\Shepherd - 400039 - PickupSJ.pdf"))
 def GetDate(lst):
-    answer = ""
     for i in range(len(lst)):
         if lst[i] == "Date:":
-            answer = lst[i+1] + " " + lst[i+2]
-    return answer
-def GetName(mydata):
-    name = ""
+            return f"{lst[i+1]} {lst[i+2]}"
+    return "Unknown Date"
+
+
+def GetNameAndLocation(mydata):
     for i in range(len(mydata)):
         if mydata[i] == "Saint John,NB,E2R 1A6,Canada":
-            name, location = (mydata[i + 1]).split(",")
-            return (f'Name: {name} \nLocation: {location}')
-            
-    print(name)
+            return mydata[i + 1].split(",")[0], f"{mydata[i + 1].split(',')[1]}, {mydata[i+2]}"
+    return "Unknown", "Unknown Location"
+
+
 class Device:
     def __init__(self, DeviceName, Quantity, ordrNum):
         self.Device = DeviceName
         self.Qty = Quantity
         self.OrderNumber = ordrNum
-    def PrintDevice(self):
-        print(f'Order Number: {self.OrderNumber}')
-        print(f'Model: {self.Device}')
-        print(f'Quantity: {self.Qty}')
+
     def DetermineBoxes(self):
-        full_box = 0
-        EightPer = ["CGM4981COM", "CGM4331COM", "TG4482A"]
-        TenPer = ["SCXI11BEI", "IPTVARXI6HD", "IPTVTCXI6HD", "SCXI11BEI-ENTOS"]
-        if self.Device in EightPer:
-            full_box = 8
-        elif self.Device in TenPer:
-            full_box = 10
-        elif self.Device == "XS010XQ":
-            full_box = 12
-        elif self.Device == "XE2SGROG1":
-            full_box = 24
-        elif self.Device == "CODA5810":
-            full_box = 5
-        else:
-            full_box = 10
-        return self.Qty / full_box
+        box_sizes = {
+            "CGM4981COM": 8, "CGM4331COM": 8, "TG4482A": 8,
+            "SCXI11BEI": 10, "IPTVARXI6HD": 10, "IPTVTCXI6HD": 10,
+            "SCXI11BEI-ENTOS": 10, "XS010XQ": 12, "XE2SGROG1": 24,
+            "CODA5810": 5
+        }
+        return self.Qty / box_sizes.get(self.Device, 10)
+
     def DetermineWeight(self):
-        if self.Device == "CGM4981COM":
-            return 4.16 * self.Qty
-        elif self.Device == "CGM4331COM" or self.Device == "TG4482A":
-            return 3.64 * self.Qty
-        elif self.Device == "SCXI11BEI" or self.Device == "SCXI11BEI-ENTOS":
-            return 1.4 * self.Qty
-        elif self.Device == "IPTVARXI6HD" or self.Device == "IPTVTCXI6HD":
-            return 1.8 * self.Qty
-        elif self.Device == "XE2SGROG1":
-            return 0.86 * self.Qty
-        elif self.Device == "CODA5810":
-            return 3.15 * self.Qty
-        elif self.Device == "SCHB1AEW" or self.Device == "SCHC2AEW" or self.Device == "SCHC3AE0":
-            return 2.3 * self.Qty
-        elif self.Device == "XS010XQ" or self.Device == "XS010XB" or self.Device == "XS020XONT" or self.Device == "XS505M":
-            return 1.38 * self.Qty
-        else: 
-            return 2.33 * self.Qty
-        
+        weights = {
+            "CGM4981COM": 4.16, "CGM4331COM": 3.64, "TG4482A": 3.64,
+            "SCXI11BEI": 1.4, "SCXI11BEI-ENTOS": 1.4, "IPTVARXI6HD": 1.8,
+            "IPTVTCXI6HD": 1.8, "XE2SGROG1": 0.86, "CODA5810": 3.15,
+            "XS010XQ": 1.38
+        }
+        return weights.get(self.Device, 2.33) * self.Qty
 
 
 def GetDevices(lst):
@@ -91,30 +80,84 @@ def GetDevices(lst):
     
     for i in chunks:
         formatQty = i[3].split(" ")
-
         orderNumber = i[0]
         device = i[1] + i[2]
         qty = int(formatQty[0])
         thisdevice = Device(device, qty, orderNumber)
         return_lst.append(thisdevice)
     return return_lst
-def GetWaybill(path):
-    thisPath = Path(path)
-    file_name =  thisPath.name
-    split_info = file_name.split(" - ")
-    waybill = split_info[2].removesuffix(".pdf")
-    return waybill
 
-lst = GetDataList(path)
-print(GetName(lst))  
-GetWaybill(path) 
-print(f'Date: {GetDate(lst)}')
-print(f'Waybill: {GetWaybill(path)}')
-devices = GetDevices(lst)
-total_box = 0
-total_weight = 0
-for i in devices:
-    total_box += i.DetermineBoxes()
-    total_weight += i.DetermineWeight()
-print(f'Total Boxes: {total_box}')
-print(f'Total Weight: {total_weight}')
+
+def GetWaybill(path):
+    return Path(path).stem.split(" - ")[-1]
+
+
+class Order:
+    def __init__(self, Name, Location, Date, Waybill, Boxes, Weight):
+        self.NameOfTec = Name
+        self.Destination = Location
+        self.TimeOfCompletion = Date
+        self.WaybillNumber = Waybill
+        self.NumberOfBoxes = math.ceil(Boxes)
+        self.TotalWeight = math.ceil(Weight)
+        self.NumberOfSkids = math.ceil(self.NumberOfBoxes / 24)
+
+    def PushToFirebase(self):
+        try:
+            db = firestore.client()
+            ref = db.collection("DeliveryTracker").document(f'{self.NameOfTec} - {self.WaybillNumber}')
+            date_obj = datetime.strptime(self.TimeOfCompletion, "%d/%m/%Y %I:%M:%S %p")
+
+            data = {
+                "TechName": self.NameOfTec,
+                "DateCompleted": date_obj,
+                "Skids": self.NumberOfSkids,
+                "Waybill": self.WaybillNumber,
+                "Weight": self.TotalWeight,
+                "Boxes": self.NumberOfBoxes,
+                "Location": self.Destination
+            }
+            ref.set(data)
+            print(f"Pushed: {self.NameOfTec} - {self.WaybillNumber}")
+
+        except Exception as e:
+            print(f"Failed to push {self.WaybillNumber} to Firebase: {e}")
+
+
+def ProcessFile(path):
+    try:
+        data_lst = GetDataList(path)
+        name, location = GetNameAndLocation(data_lst)
+        date = GetDate(data_lst)
+        waybill = GetWaybill(path)
+        devices = GetDevices(data_lst)
+        
+        total_boxes = sum(device.DetermineBoxes() for device in devices)
+        total_weight = sum(device.DetermineWeight() for device in devices)
+
+        order = Order(name, location, date, waybill, total_boxes, total_weight)
+        order.PushToFirebase()
+
+    except Exception as e:
+        print(f"Error processing {path}: {e}")
+
+
+def SelectAndProcessFiles():
+    root = tk.Tk()
+    root.withdraw()  # Hide main window
+
+    file_paths = filedialog.askopenfilenames(
+        title="Select PDF Files",
+        filetypes=[("PDF Files", "*.pdf")]
+    )
+
+    if not file_paths:
+        print("No files selected.")
+        return
+
+    for path in file_paths:
+        ProcessFile(path)
+
+
+# if __name__ == "__main__":
+#     SelectAndProcessFiles()

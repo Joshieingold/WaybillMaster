@@ -1,0 +1,56 @@
+Page: 1
+Date: 13/03/2025 2:58:09
+PM
+Packing Slip Report
+Ship From:
+ Ship To:
+NB1
+ TEC
+Saint John, NB (Network)
+55 Expansion Ave
+Saint John,NB,E2R 1A6,Canada
+ Bryant Shepherd,55 Expansion Avenue
+ Saint John,NB,E2R 1A6,CA
+Load Number:
+Ship Via: LTL
+Status: Created
+Way Bill:  
+Ship Date: 13/03/2025 2:58:00
+PM
+Carrier:  
+Delivery Instructions:
+Network Project Number:
+Network Site Code:
+Network Project Name:
+Network Site Name:
+NIO
+Order
+Nbr
+SO/TO
+Nbr
+LPN Number
+Item
+Project
+Task
+Shipped Qty
+Item Description
+400039
+XS010XQ
+10 UNITS
+XGS PON Indoor ONT Cortina SOC
+400039
+CGM4331C
+OM
+8 UNITS
+Docsis 3.1 WiFi6 Gateway
+400039
+CGM4981C
+OM
+16 UNITS
+Docsis 3.1 WiFi6E Gateway
+400039
+IPTVTCXI6
+HD
+30 UNITS
+IPTVTCXI6HD - Xi6 4K 5G Wifi Client
+

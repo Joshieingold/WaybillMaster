@@ -1,3 +1,4 @@
+# Imports
 from pypdf import PdfReader
 import math
 from pathlib import Path
@@ -7,6 +8,7 @@ from datetime import datetime
 import tkinter as tk
 from tkinter import filedialog
 
+# Get Credentials
 cred = credentials.Certificate("C:\\Users\\user\\Documents\\Repositories\\WaybillMaster\\bomwipstore-firebase-adminsdk-jhqev-c316244037.json")
 firebase_admin.initialize_app(cred)
 
@@ -113,7 +115,6 @@ def EstimateBoxesAndWeight(DeviceList):
         TotalBoxes += float(Qty) / (box_sizes.get(Device, 10))
         TotalWeight += float(Qty) * (weights.get(Device, 2.33))
     return [TotalBoxes, TotalWeight]
-
 # Order Class
 class Order:
     def __init__(self, Name, Location, Date, Waybill, Boxes, Weight, DeviceList, OrderID):
@@ -166,8 +167,7 @@ class Order:
 
         except Exception as e:
             print(f"Failed to push {self.WaybillNumber} to Firebase: {e}")
-
-
+# For processing multiple pdfs.
 def SelectAndProcessFiles():
     root = tk.Tk()
     root.withdraw()  # Hide main window

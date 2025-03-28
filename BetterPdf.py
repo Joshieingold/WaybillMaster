@@ -114,6 +114,7 @@ def EstimateBoxesAndWeight(DeviceList):
         TotalWeight += float(Qty) * (weights.get(Device, 2.33))
     return [TotalBoxes, TotalWeight]
 
+# Order Class
 class Order:
     def __init__(self, Name, Location, Date, Waybill, Boxes, Weight, DeviceList, OrderID):
         self.NameOfTec = Name
@@ -166,11 +167,6 @@ class Order:
         except Exception as e:
             print(f"Failed to push {self.WaybillNumber} to Firebase: {e}")
 
-
-#path = "C:\\Users\\user\\Documents\\Repositories\\WaybillMaster\\Landry - 397054 - 335308402270.pdf"
-#path = "C:\\Users\\user\\Documents\\Repositories\\WaybillMaster\\Spinney - 395007 - STJ6047100.pdf"
-#path = "C:\\Users\\user\\Documents\\Repositories\\WaybillMaster\\Shepherd - 400039 - PickupSJ.pdf"
-#path = "C:\\Users\\user\\Documents\\Repositories\\WaybillMaster\\NF1 - 396041 - 335306377169.pdf"
 
 def SelectAndProcessFiles():
     root = tk.Tk()

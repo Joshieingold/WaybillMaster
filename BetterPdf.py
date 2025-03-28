@@ -142,6 +142,12 @@ class Order:
             ref = db.collection("DeliveryTracker").document(f'{self.NameOfTec} - {self.OrderID} - {self.WaybillNumber}')
             date_obj = datetime.strptime(self.TimeOfCompletion, "%d/%m/%Y")
 
+            # Convert device list into a dictionary (map)
+            device_map = {}
+            for item in self.Devices:
+                Device, Qty = item.split()
+                device_map[Device] = int(Qty)  # Store as integer
+
             data = {
                 "TechName": self.NameOfTec,
                 "DateCompleted": date_obj,
@@ -150,9 +156,10 @@ class Order:
                 "Weight": self.TotalWeight,
                 "Boxes": self.NumberOfBoxes,
                 "Location": self.Destination,
-                "Devices": self.Devices,
+                "Devices": device_map,  # Now stored as a dictionary
                 "OrderID": self.OrderID
             }
+
             ref.set(data)
             print(f"Pushed: {self.NameOfTec} - {self.OrderID} - {self.WaybillNumber}")
 

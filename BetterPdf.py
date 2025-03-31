@@ -9,7 +9,7 @@ import tkinter as tk
 from tkinter import filedialog
 
 # Get Credentials
-cred = credentials.Certificate("C:\\Users\\user\\Documents\\Repositories\\WaybillMaster\\bomwipstore-firebase-adminsdk-jhqev-c316244037.json")
+cred = credentials.Certificate("C:\\Users\\josh.lynch\\Videos\\WaybillMaster\\bomwipstore-firebase-adminsdk-jhqev-c316244037.json")
 firebase_admin.initialize_app(cred)
 
 def GetDataList(pathName):

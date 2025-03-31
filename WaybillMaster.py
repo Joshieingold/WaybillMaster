@@ -159,5 +159,5 @@ def SelectAndProcessFiles():
         ProcessFile(path)
 
 
-# if __name__ == "__main__":
-#     SelectAndProcessFiles()
+if __name__ == "__main__":
+    SelectAndProcessFiles()

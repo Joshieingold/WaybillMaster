@@ -58,6 +58,41 @@ def GetNameAndLocation(Data):
     
     # Join location data into a single string and return both username and location
     return [username, " ".join(location_lst)]
+
+def GetNameAndLocationGI(Data):
+    LocationBurr = False
+    username = ""
+    location_lst = []
+    
+    # Search for the specific location to find the username
+    for i in range(len(Data)):
+        if Data[i] == "Saint John, NB (Network)":
+            username = Data[i+1]  # Username is the next item in the list
+            if "," in username:  # If the username contains commas (split it for location)
+                temp = username.split(",")
+                for j in range(len(temp)):
+                    if j == 0:
+                        username = temp[j]  # First part is the username
+                    else:
+                        location_lst.append(temp[j])  # Add the rest to the location list
+            break  # Exit the loop once username and location are found
+
+    # Now look for the username in the data to gather further location info
+    for i in range(len(Data)):
+        if username in Data[i]:  # Found the username
+            LocationBurr = True  # Set the flag to start collecting the location
+            continue
+        if LocationBurr:  # If flag is true, start collecting location data
+            while i < len(Data) and Data[i] != "Load Number:":  # Stop at the "Load Number:" line
+                location_lst.append(Data[i])  # Collect all data until "Load Number:"
+                i += 1  # Move to the next item in the list
+            break  # Exit the loop after location data is collected
+    
+    # Join location data into a single string and return both username and location
+    location = ((" ".join(location_lst)).split("Canada")[1]).strip()
+    return [username, location]
+    
+
 def GetWaybill(pathName):
     file = Path(pathName).stem
     if " - " in file:
@@ -68,6 +103,14 @@ def GetWaybill(pathName):
             return f'PickupSJ'
         else: 
             return temp[-1]
+def GetWaybillGI(Data):
+    waybill = ""
+    for i in range(len(Data)):
+        if "Way Bill" in Data[i]:
+            waybill = Data[i+1]
+            
+    return waybill
+
 def GetDeviceChunks(Data):
     DeviceTime = False
     device_lst = []
@@ -141,7 +184,7 @@ class Order:
     def PushToFirebase(self):
         try:
             db = firestore.client()
-            ref = db.collection("DeliveryTracker").document(f'{self.NameOfTec} - {self.OrderID} - {self.WaybillNumber}')
+            ref = db.collection("TempDelivery").document(f'{self.NameOfTec} - {self.OrderID} - {self.WaybillNumber}')
             date_obj = datetime.strptime(self.TimeOfCompletion, "%d/%m/%Y")
 
             # Convert device list into a dictionary (map)
@@ -187,11 +230,14 @@ def ProcessFile(path):
     try:
         DataList = (GetDataList(path))  
         date = (GetDate(DataList))
-        name, location = (GetNameAndLocation(DataList))
-        waybill = (GetWaybill(path))
+        #name, location = (GetNameAndLocation(DataList))
+        name, location = (GetNameAndLocationGI(DataList))
+        #waybill = (GetWaybill(path))
+        waybill = (GetWaybillGI(DataList))
         DeviceList, orderID = (ParseDeviceData(DataList))
         boxes, weight = EstimateBoxesAndWeight(DeviceList)
         ThisOrder = Order(name, location, date, waybill, boxes, weight, DeviceList, orderID)
+        #ThisOrder.DefineDetails()
         ThisOrder.PushToFirebase()
 
     except Exception as e:

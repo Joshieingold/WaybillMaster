@@ -9,7 +9,7 @@ import tkinter as tk
 from tkinter import filedialog
 
 # Get Credentials
-cred = credentials.Certificate("C:\\Users\\josh.lynch\\Videos\\WaybillMaster\\bomwipstore-firebase-adminsdk-jhqev-c316244037.json")
+cred = credentials.Certificate("C:\\Users\\user\\Documents\\Repositories\\WaybillMaster\\bomwipstore-firebase-adminsdk-jhqev-c316244037.json")
 firebase_admin.initialize_app(cred)
 
 def GetDataList(pathName):
@@ -158,6 +158,33 @@ def EstimateBoxesAndWeight(DeviceList):
         TotalBoxes += float(Qty) / (box_sizes.get(Device, 10))
         TotalWeight += float(Qty) * (weights.get(Device, 2.33))
     return [TotalBoxes, TotalWeight]
+
+def GetTechListandLocation():
+    TechList = []
+    LocationList = []
+    db = firestore.client()
+    ref = db.collection("TechDatabase")
+    docs = ref.stream()
+    for doc in docs:
+        data = doc.to_dict()
+        TechList.append(data['Name'].lower())
+        LocationList.append(data['Location'])
+    return [TechList, LocationList]
+TechList, LocationList = GetTechListandLocation()
+
+
+def EstimateWaybill(location):
+    estimate = "purolator"
+    if "moncton" in location.lower():
+        return "STJ"
+    elif "fredericton" in location.lower():
+        return "STJ"
+    elif "saint" in location.lower():
+        return "PickupSJ"
+    else:
+        return "Purolator"
+
+
 # Order Class
 class Order:
     def __init__(self, Name, Location, Date, Waybill, Boxes, Weight, DeviceList, OrderID):
@@ -170,6 +197,7 @@ class Order:
         self.NumberOfSkids = self.NumberOfBoxes / 24
         self.Devices = DeviceList
         self.OrderID = OrderID
+        self.Note = ""
     def DefineDetails(self):
         print(f'Order for: {self.NameOfTec}')
         print(f'Going to: {self.Destination}')
@@ -181,10 +209,14 @@ class Order:
         print(f'Devices Associated with this order:')
         for i in range(len(self.Devices)):
             print(f'{i + 1}: {self.Devices[i]}')
+
+
+
     def PushToFirebase(self):
         try:
+            easyPush = True
             db = firestore.client()
-            ref = db.collection("TempDelivery").document(f'{self.NameOfTec} - {self.OrderID} - {self.WaybillNumber}')
+            ref = db.collection("DeliveryTracker").document(f'{self.NameOfTec} - {self.OrderID} - {self.WaybillNumber}')
             date_obj = datetime.strptime(self.TimeOfCompletion, "%d/%m/%Y")
 
             # Convert device list into a dictionary (map)
@@ -202,7 +234,8 @@ class Order:
                 "Boxes": self.NumberOfBoxes,
                 "Location": self.Destination,
                 "Devices": device_map,  # Now stored as a dictionary
-                "OrderID": self.OrderID
+                "OrderID": self.OrderID,
+                "Note": self.Note
             }
 
             ref.set(data)
@@ -210,6 +243,74 @@ class Order:
 
         except Exception as e:
             print(f"Failed to push {self.WaybillNumber} to Firebase: {e}")
+    def PushToTempFirebase(self):
+        try:
+            easyPush = True
+            db = firestore.client()
+            ref = db.collection("TempOrders").document(f'{self.NameOfTec} - {self.OrderID} - {self.WaybillNumber}')
+            date_obj = datetime.strptime(self.TimeOfCompletion, "%d/%m/%Y")
+
+            # Convert device list into a dictionary (map)
+            device_map = {}
+            for item in self.Devices:
+                Device, Qty = item.split()
+                device_map[Device] = int(Qty)  # Store as integer
+
+            data = {
+                "TechName": self.NameOfTec,
+                "DateCompleted": date_obj,
+                "Skids": self.NumberOfSkids,
+                "Waybill": self.WaybillNumber,
+                "Weight": self.TotalWeight,
+                "Boxes": self.NumberOfBoxes,
+                "Location": self.Destination,
+                "Devices": device_map,  # Now stored as a dictionary
+                "OrderID": self.OrderID,
+                "Note": self.Note
+            }
+
+            ref.set(data)
+            print(f"Pushed: {self.NameOfTec} - {self.OrderID} - {self.WaybillNumber}")
+
+        except Exception as e:
+            print(f"Failed to push {self.WaybillNumber} to Firebase: {e}")
+
+    def FixAndAlert(self):
+        safePush = True
+        expected_waybill = ""
+        if self.NumberOfSkids <= 0:
+           safePush = False
+           self.Note = "Order was flagged for unverified amount of skids."
+        if self.NumberOfBoxes <= 0:
+            self.NumberOfBoxes = 1
+        if self.TotalWeight <= 0:
+            self.TotalWeight = 2.33
+            safePush = False
+            self.Note += "\n Order was flagged for unverified weight"
+        if self.NameOfTec.lower() not in (TechList):
+            safePush = False
+            self.Note += "\n Order was flagged as tech is not in database"
+        else: 
+            index = TechList.index((self.NameOfTec).lower())
+            self.Destination = LocationList[index]
+        if EstimateWaybill(self.Destination) not in self.WaybillNumber:
+            if EstimateWaybill(self.Destination) == "Purolator":
+                if self.WaybillNumber.isdigit() == False:
+                    safePush = False
+                    self.Note += "\n Order was flagged as waybill was unexpected."
+            else:
+                safePush = False
+                self.Note += "\n Order was flagged as waybill was unexpected."
+        if self.OrderID.isdigit() == False:
+            if "TOP" not in self.OrderID:
+                safePush == False
+                self.Note += "\n Order was flagged as the order id is malformed."
+        if safePush == False:
+            self.PushToTempFirebase()
+            print(f'Order {self.OrderID} was flagged for review.')
+        else:
+            self.PushToFirebase()
+            print(f'Order {self.OrderID} was pushed to main database.')
 # For processing multiple pdfs.
 def SelectAndProcessFiles():
     root = tk.Tk()
@@ -230,15 +331,15 @@ def ProcessFile(path):
     try:
         DataList = (GetDataList(path))  
         date = (GetDate(DataList))
-        #name, location = (GetNameAndLocation(DataList))
-        name, location = (GetNameAndLocationGI(DataList))
-        #waybill = (GetWaybill(path))
-        waybill = (GetWaybillGI(DataList))
+        name, location = (GetNameAndLocation(DataList))
+        #name, location = (GetNameAndLocationGI(DataList))
+        waybill = (GetWaybill(path))
+        #waybill = (GetWaybillGI(DataList))
         DeviceList, orderID = (ParseDeviceData(DataList))
         boxes, weight = EstimateBoxesAndWeight(DeviceList)
         ThisOrder = Order(name, location, date, waybill, boxes, weight, DeviceList, orderID)
         #ThisOrder.DefineDetails()
-        ThisOrder.PushToFirebase()
+        ThisOrder.FixAndAlert()
 
     except Exception as e:
         print(f"Error processing {path}: {e}")
